@@ -6,12 +6,16 @@ project "snAIke"
     objdir (OUTPUT_DIR .. "/%{prj.name}")
 
     files { "**.hpp", "**.cpp" }
+    removefiles {"imgui/impl/*"}
 
     includedirs
     {
         INCLUDE_PATHS.ROOT,
-        INCLUDE_PATHS.SFML
+        INCLUDE_PATHS.SFML,
+        INCLUDE_PATHS.IMGUI,
+        INCLUDE_PATHS.IMGUI_SFML
     }
+
     libdirs
     {
         LIB_PATHS.SFML,
@@ -32,7 +36,13 @@ project "snAIke"
         "ws2_32",
     }
 
-    defines { "SFML_STATIC" }
+    defines 
+    {
+        "IMGUI_USER_CONFIG=<imconfig-SFML.h>",
+        "SFML_STATIC"
+    }
+
+    links { "imGui" }
 
     filter "configurations:Debug"
         kind "ConsoleApp"
@@ -62,5 +72,5 @@ project "snAIke"
             "sfml-system-s",
             "sfml-audio-s",
             "sfml-network-s",
-            "sfml-main-s"
+            "sfml-main"
         }

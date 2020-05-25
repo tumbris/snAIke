@@ -1,3 +1,6 @@
-[submodule "code/imgui"]
-	path = code/imgui
+[submodule "code/ImGui/imgui"]
+	path = code/ImGui/imgui
 	url = https://github.com/tumbris/imgui
+[submodule "code/ImGui/imgui-sfml"]
+	path = code/ImGui/imgui-sfml
+	url = https://github.com/tumbris/imgui-sfml

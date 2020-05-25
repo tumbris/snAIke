@@ -1,27 +1,12 @@
-#include <SFML/Graphics.hpp>
+#include <snAIke/Application/Application.hpp>
 
-int main()
+char** g_argv = nullptr;
+
+int main(int argc, char** argv)
 {
-    sf::RenderWindow window(sf::VideoMode(400, 400), "snAIke");
+    g_argv = argv;
 
-    sf::CircleShape circle(200);
-    circle.setFillColor(sf::Color::Green);
-
-    while (window.isOpen())
-    {
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-            if (event.type == sf::Event::Closed)
-            {
-                window.close();
-            }
-
-            window.clear();
-
-            window.draw(circle);
-
-            window.display();
-        }
-    }
+    Application app;
+    app.Init(800, 600, "snAIke");
+    return app.Run();
 }
