@@ -32,7 +32,10 @@ void SnakeGame::Init(std::size_t fieldSize, const IntrusivePtr<SnakeController>&
     {
         callbacks.push_back(director->AddUpdatorCallback(Callback(this, &SnakeGame::Update), UpdatePriority::GameUpdate));
         callbacks.push_back(director->AddUpdatorCallback(Callback(this, &SnakeGame::ImGuiRender), UpdatePriority::ImGuiUpdate));
+
+    #if defined(DEBUG)
         callbacks.push_back(director->AddUpdatorCallback(Callback(this, &SnakeGame::DebugDraw)));
+    #endif
 
         renderTarget = director->GetMainApplication()->GetGameRenderWindow();
     }

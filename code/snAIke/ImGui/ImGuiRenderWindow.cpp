@@ -56,7 +56,9 @@ void ImGuiRenderWindow::Init(const sf::Vector2u size, const char* label)
 
     if (auto director = Singleton<Director>::GetInstance())
     {
+    #if defined(DEBUG)
         callbacks.push_back(director->AddUpdatorCallback(Callback(this, &ImGuiRenderWindow::DebugDraw)));
+    #endif
     }
 }
 
