@@ -4,7 +4,7 @@ template <class T>
 class Singleton
 {
 private:
-    Singletor() = delete;
+    Singleton() = delete;
 public:
     static void CreateInstance();
     static T* GetInstance();

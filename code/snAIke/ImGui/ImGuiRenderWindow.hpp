@@ -1,5 +1,6 @@
 #pragma once
 
+#include <snAIke/Singletons/Director/Updator.hpp>
 #include <snAIke/Utility/DirtyValue.hpp>
 
 #include <SFML/Graphics/RenderTexture.hpp>
@@ -17,19 +18,34 @@ class ImGuiRenderWindow : public sf::RenderTexture
 {
 public:
     ImGuiRenderWindow();
-    ImGuiRenderWindow(const char* lable);
+    ImGuiRenderWindow(const sf::Vector2u size, const char* lable);
+    ~ImGuiRenderWindow();
 
-    void Init(const char* label);
+    void Init(const sf::Vector2u size, const char* label);
 
     void ImGuiRender();
+
+    void Draw(const sf::Drawable& drawable, sf::RenderStates states = sf::RenderStates::Default);
 
     void Show() { isOpen = true; }
     void Hide() { isOpen = false; }
 
     bool IsOpen() const { return isOpen; }
 
-private:
+    const ImVec2& GetSize() const;
+    void Resize(const ImVec2& size);
+
+protected:
     DirtyValue<ImVec2> size;
+    ImVec2 pos{};
+private:
     std::string label;
-    bool isOpen = false;
+    std::vector<UpdatorIdType> callbacks;
+
+    bool isOpen = true;
+    
+#if defined(DEBUG)
+private:
+    void DebugDraw(float);
+#endif
 };

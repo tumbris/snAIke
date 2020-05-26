@@ -1,6 +1,6 @@
 workspace "snAIke"
     location "code"
-    configurations { "Debug", "Release" }
+    configurations { "Debug", "Release", "Dist" }
     architecture "x64"
     platforms { "Win64" }
     startproject "snAIke"
@@ -23,7 +23,9 @@ workspace "snAIke"
     LIB_PATHS = 
     {
         SFML = "%{wks.location}/SFML/build/lib/%{cfg.buildcfg}",
-        SFML_EXTLIB = ""
+        SFML_EXTLIB = "",
+
+        SFML_DIST = "%{wks.location}/SFML/build/lib/Release"
     }
 
     filter "action:vs*"

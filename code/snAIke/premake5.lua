@@ -39,10 +39,18 @@ project "snAIke"
     defines 
     {
         "IMGUI_USER_CONFIG=<imconfig-SFML.h>",
-        "SFML_STATIC"
+        "SFML_STATIC",
+        "RES_EXTENTION=\".png\""
     }
 
     links { "imGui" }
+
+    filter {"configurations:Debug or Release"}
+        defines
+        {
+            "RES_PATH=\"../../data\""
+        }
+
 
     filter "configurations:Debug"
         kind "ConsoleApp"
@@ -59,9 +67,9 @@ project "snAIke"
             "sfml-network-s-d"
         }
 
-    filter "configurations:Release"
+    filter "configurations:Release or Dist"
         kind "WindowedApp"
-        defines { "NDEBUG", "RELEASE" }
+        defines { "NDEBUG"}
         optimize "On"
         runtime "Release"
 
@@ -73,4 +81,21 @@ project "snAIke"
             "sfml-audio-s",
             "sfml-network-s",
             "sfml-main"
+        }
+
+    filter "configurations:Release"
+        defines { "RELEASE" }
+
+    filter "configurations:Dist"
+        targetdir "%{wks.location}/../dist"
+        libdirs { LIB_PATHS.SFML_DIST }
+        debugcommand ""
+        defines
+        {
+            "DIST",
+            "RES_PATH=\"data\""
+        }
+        postbuildcommands
+        {
+            "{COPY} %{wks.location}../data %{cfg.buildtarget.directory}/data"
         }

@@ -1,8 +1,10 @@
 #include <snAIke/Application/Application.hpp>
+#include <snAIke/Singletons/Director/Director.hpp>
 
+#include <snAIke/SnakeGame/SnakeGame.hpp>
 #include <snAIke/ImGui/ImGuiRenderWindow.hpp>
-#include <snAIke/Singletons/Singletons.hpp>
 #include <snAIke/Utility/DirtyValue.hpp>
+#include <snAIke/Utility/Callback.hpp>
 
 #include <imgui-SFML.h>
 #include <imgui.h>
@@ -10,74 +12,116 @@
 #ifndef IMGUI_DEFINE_MATH_OPERATORS
 #define IMGUI_DEFINE_MATH_OPERATORS
 #endif
-#include "imgui_internal.h"
+#include <imgui_internal.h>
 
 #include <SFML/Graphics.hpp>
 
 struct Application::ApplicationImpl
 {
-    sf::RenderWindow window;
-    ImGuiRenderWindow mainViewport;
+public:
+    void PollEvents();
+    void Init(std::uint32_t width, std::uint32_t height, const char* name);
+public:
+    sf::RenderWindow mainWindow;
+    ImGuiRenderWindow gameMainRenderWindow;
+    SnakeGame game;
 
-    static ApplicationImpl* Create(std::uint32_t width, std::uint32_t height, const char* name);
+    sf::Clock deltaClock;
+    sf::Time frameTime;
 };
+
+Application::Application() : impl(nullptr)
+{
+}
+
+Application::~Application()
+{
+}
 
 void Application::Init(std::uint32_t width, std::uint32_t height, const char* name)
 {
-    InitializeSingletons();
+    impl = new ApplicationImpl;
+    impl->Init(width, height, name);
 
-
-    impl = ApplicationImpl::Create(width, height, name);
+    impl->mainWindow.setVerticalSyncEnabled(true);
+    ImGui::SFML::Init(impl->mainWindow);
 }
 
 int Application::Run()
 {
-    if (!impl)
+    if (!impl) return EXIT_FAILURE;
+
+    auto director = Singleton<Director>::GetInstance();
+
+    while (impl->mainWindow.isOpen())
     {
-        return EXIT_FAILURE;
-    }
+        BeginFrame();
+        director->TriggerUpdates(UpdatePriority::FrameBegin);
+        director->TriggerUpdates(UpdatePriority::PostFrameBegin);
 
-    auto& window = impl->window;
-    auto& viewport = impl->mainViewport;
-    window.setVerticalSyncEnabled(true);
+        director->TriggerUpdates(UpdatePriority::ImGuiUpdate);
+        ImGuiRender();
+        director->TriggerUpdates(UpdatePriority::ApplicationUpdate);
+        Update();
+        director->TriggerUpdates(UpdatePriority::GameUpdate);
 
-    ImGui::SFML::Init(window);
+        director->TriggerUpdates(UpdatePriority::Default);
 
-    sf::CircleShape circle(100);
-    circle.setFillColor(sf::Color::Green);
-    circle.setPosition(50.f, 50.f);
-
-    sf::Clock deltaClock;
-    sf::Time frameTime = deltaClock.restart();
-    while (window.isOpen())
-    {
-        PollEvents(window);
-        frameTime = deltaClock.restart();
-
-        ImGui::SFML::Update(window, frameTime);
-
-        DisplayDockSpace();
-
-        ImGui::ShowDemoWindow();
-
-        viewport.clear();
-        viewport.draw(circle);
-        viewport.display();
-
-        window.clear();
-        viewport.ImGuiRender();
-        ImGui::SFML::Render(window);
-        window.display();
+        director->TriggerUpdates(UpdatePriority::PreFrameEnd);
+        director->TriggerUpdates(UpdatePriority::FrameEnd);
+        EndFrame();
     }
 
     Deinit();
     return EXIT_SUCCESS;
 }
 
+float Application::GetFrameTime() const
+{
+    return impl->frameTime.asSeconds();
+}
+
+ImGuiRenderWindow* Application::GetGameRenderWindow()
+{
+    assert(impl != nullptr);
+    return &(impl->gameMainRenderWindow);
+}
+
+sf::RenderWindow* Application::GetApplicationRenderWindow()
+{
+    return &(impl->mainWindow);
+}
+
+void Application::BeginFrame()
+{
+    impl->PollEvents();
+    impl->frameTime = impl->deltaClock.restart();
+    ImGui::SFML::Update(impl->mainWindow, impl->frameTime);
+    DisplayDockSpace();
+    impl->mainWindow.clear();
+    impl->gameMainRenderWindow.clear();
+}
+
+void Application::Update()
+{
+
+}
+
+void Application::EndFrame()
+{
+    impl->mainWindow.display();
+}
+
+void Application::ImGuiRender()
+{
+    impl->gameMainRenderWindow.display();
+    impl->gameMainRenderWindow.ImGuiRender();
+
+    ImGui::SFML::Render(impl->mainWindow);
+}
+
 void Application::Deinit()
 {
-    DeinitializeSingletons();
-
     delete impl;
 }
 
@@ -86,17 +130,15 @@ void Application::DisplayDockSpace()
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 
     ImGuiViewport* viewport = ImGui::GetMainViewport();
-    //ImGui::SetNextWindowPos(viewport->GetWorkPos());
-    //ImGui::SetNextWindowSize(viewport->GetWorkSize());
-    //ImGui::SetNextWindowViewport(viewport->ID);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::SetNextWindowPos(viewport->GetWorkPos());
+    ImGui::SetNextWindowSize(viewport->GetWorkSize());
+    ImGui::SetNextWindowViewport(viewport->ID);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
     window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin("main_dockspace_window", nullptr, window_flags);
-    ImGui::PopStyleVar();
     ImGui::PopStyleVar(2);
 
     ImGuiID dockspace_id = ImGui::GetID("main_dock_space");
@@ -113,10 +155,10 @@ void Application::DisplayMenuBar()
     {
         if (ImGui::BeginMenu("View"))
         {
-            if (ImGui::MenuItem("Veiwport", "", impl->mainViewport.IsOpen()))
+            if (ImGui::MenuItem("Veiwport", "", impl->gameMainRenderWindow.IsOpen()))
             {
-                if (impl->mainViewport.IsOpen()) impl->mainViewport.Hide();
-                else impl->mainViewport.Show();
+                if (impl->gameMainRenderWindow.IsOpen()) impl->gameMainRenderWindow.Hide();
+                else impl->gameMainRenderWindow.Show();
             }
             ImGui::EndMenu();
         }
@@ -124,16 +166,16 @@ void Application::DisplayMenuBar()
     }
 }
 
-void Application::PollEvents(sf::RenderWindow& window)
+void Application::ApplicationImpl::PollEvents()
 {
     sf::Event event;
-    while (window.pollEvent(event))
+    while (mainWindow.pollEvent(event))
     {
         ImGui::SFML::ProcessEvent(event);
 
         switch (event.type)
         {
-        case sf::Event::Closed: window.close(); break;
+        case sf::Event::Closed: mainWindow.close(); break;
         case sf::Event::Resized:
         {
             sf::FloatRect newViewport{
@@ -142,7 +184,7 @@ void Application::PollEvents(sf::RenderWindow& window)
                 static_cast<float>(event.size.height)
             };
 
-            window.setView(sf::View(newViewport));
+            mainWindow.setView(sf::View(newViewport));
             break;
         }
         default: break;
@@ -150,11 +192,12 @@ void Application::PollEvents(sf::RenderWindow& window)
     }
 }
 
-Application::ApplicationImpl* Application::ApplicationImpl::Create(std::uint32_t width, std::uint32_t height, const char* name)
+void Application::ApplicationImpl::Init(std::uint32_t width, std::uint32_t height, const char* name)
 {
+    static constexpr std::size_t fieldSize = 12;
+
     sf::VideoMode videoMode(width, height);
-    auto res = new ApplicationImpl;
-    res->window.create(videoMode, name);
-    res->mainViewport.Init("Viewport");
-    return res;
+    mainWindow.create(videoMode, name);
+    gameMainRenderWindow.Init({ width, height }, "Viewport");
+    game.Init(fieldSize);
 }
