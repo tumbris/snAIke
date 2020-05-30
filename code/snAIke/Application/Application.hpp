@@ -4,6 +4,7 @@
 #include <cstdint>
 
 class ImGuiRenderWindow;
+class SnakeGame;
 
 namespace sf
 {
@@ -31,8 +32,6 @@ private:
     void EndFrame();
 
     void ImGuiRender();
-
-    void Deinit();
 
     void DisplayDockSpace();
     void DisplayMenuBar();

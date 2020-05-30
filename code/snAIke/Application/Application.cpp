@@ -1,5 +1,6 @@
 #include <snAIke/Application/Application.hpp>
 #include <snAIke/Singletons/Director/Director.hpp>
+#include <snAIke/Singletons/GameManager.hpp>
 
 #include <snAIke/SnakeGame/SnakeGame.hpp>
 #include <snAIke/ImGui/ImGuiRenderWindow.hpp>
@@ -24,7 +25,6 @@ public:
 public:
     sf::RenderWindow mainWindow;
     ImGuiRenderWindow gameMainRenderWindow;
-    SnakeGame game;
 
     sf::Clock deltaClock;
     sf::Time frameTime;
@@ -36,6 +36,7 @@ Application::Application() : impl(nullptr)
 
 Application::~Application()
 {
+    delete impl;
 }
 
 void Application::Init(std::uint32_t width, std::uint32_t height, const char* name)
@@ -50,6 +51,8 @@ void Application::Init(std::uint32_t width, std::uint32_t height, const char* na
 int Application::Run()
 {
     if (!impl) return EXIT_FAILURE;
+
+    Singleton<GameManager>::GetInstance()->Init();
 
     auto director = Singleton<Director>::GetInstance();
 
@@ -72,7 +75,6 @@ int Application::Run()
         EndFrame();
     }
 
-    Deinit();
     return EXIT_SUCCESS;
 }
 
@@ -118,11 +120,6 @@ void Application::ImGuiRender()
     impl->gameMainRenderWindow.ImGuiRender();
 
     ImGui::SFML::Render(impl->mainWindow);
-}
-
-void Application::Deinit()
-{
-    delete impl;
 }
 
 void Application::DisplayDockSpace()
@@ -194,10 +191,7 @@ void Application::ApplicationImpl::PollEvents()
 
 void Application::ApplicationImpl::Init(std::uint32_t width, std::uint32_t height, const char* name)
 {
-    static constexpr std::size_t fieldSize = 12;
-
     sf::VideoMode videoMode(width, height);
     mainWindow.create(videoMode, name);
     gameMainRenderWindow.Init({ width, height }, "Viewport");
-    game.Init(fieldSize);
 }

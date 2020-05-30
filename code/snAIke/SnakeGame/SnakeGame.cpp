@@ -6,11 +6,12 @@
 #include <snAIke/Utility/Random.hpp>
 #include <snAIke/Utility/CoreDefs.hpp>
 
-#include <snAIke/ImGui/ImGuiSnakeController.hpp>                                    //DefaultConstroller
+#include <snAIke/SnakeGame/Controllers/ImGuiSnakeController.hpp>                                    //DefaultController
 
 #include <SFML/Graphics.hpp>
 
 #include <imgui.h>
+#include <imgui_internal.h>
 
 SnakeGame::~SnakeGame()
 {
@@ -23,10 +24,9 @@ SnakeGame::~SnakeGame()
     }
 }
 
-void SnakeGame::Init(std::size_t fieldSize, const IntrusivePtr<SnakeController>& controller)
+void SnakeGame::Init(std::size_t fieldSize)
 {
     field.Init(fieldSize);
-    this->controller = controller;
 
     if (auto director = Singleton<Director>::GetInstance())
     {
@@ -43,9 +43,9 @@ void SnakeGame::Init(std::size_t fieldSize, const IntrusivePtr<SnakeController>&
     SpawnFruit();
 }
 
-void SnakeGame::SetController(const IntrusivePtr<SnakeController>& controller)
+void SnakeGame::PushController(const IntrusivePtr<SnakeController>& controller)
 {
-    this->controller = controller;
+    controllers.push_back(controller);
 }
 
 void SnakeGame::Update(float dt)
@@ -81,11 +81,21 @@ void SnakeGame::StartGame()
 {
     isInProgress = true;
     score = 0;
-
-    if (!controller)
+    if (pickedController)
     {
-        controller = MakeIntrusive<ImGuiSnakeController>();
+        pickedController->Bind(field.GetTileGrid());
     }
+}
+
+void SnakeGame::StopGame()
+{
+    isInProgress = false;
+    currentDirection = Direction::Up;
+
+    SpawnSnake();
+    SpawnFruit();
+
+    RefreshField();
 }
 
 void SnakeGame::SpawnSnake()
@@ -123,15 +133,13 @@ void SnakeGame::SpawnSnake()
 
 void SnakeGame::SpawnFruit()
 {
-    if (fruit.x != -1 || fruit.y != -1) return;
-
     auto fieldSize = field.GetFieldSize();
 
     if (snake.size() == static_cast<std::size_t>(fieldSize * fieldSize)) return;
 
     Fruit f
     {
-        RandInRange(fieldSize / 2, fieldSize - 1),
+        RandInRange(0ll, fieldSize - 1),
         RandInRange(0ll, fieldSize - 1)
     };
 
@@ -158,7 +166,7 @@ void SnakeGame::SpawnFruit()
     field.SetTile(static_cast<std::size_t>(fruit.y), static_cast<std::size_t>(fruit.x), TileType_Fruit);
 }
 
-void SnakeGame::ImGuiRender(float)
+void SnakeGame::ImGuiRender(float dt)
 {
     renderTarget->Draw(field);
 
@@ -169,14 +177,70 @@ void SnakeGame::ImGuiRender(float)
 
         ImGui::Text("Score: %d", score);
 
-        if (!isInProgress)
+        bool in_progress = isInProgress;
+
+        if (in_progress)
+        {
+            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f);
+        }
+
+        if (!controllers.empty())
+        {
+            static const char* current_picked = "Snake controller";
+            if (ImGui::BeginCombo("Controller", current_picked))
+            {
+                for (auto& controller : controllers)
+                {
+                    bool is_selected = false;
+                    if (ImGui::Selectable(controller->GetName(), &is_selected))
+                    {
+                        current_picked = controller->GetName();
+                        pickedController = controller.Get();
+                    }
+                    if (is_selected)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
+
+        if (in_progress)
+        {
+            ImGui::PopItemFlag();
+            ImGui::PopStyleVar();
+        }
+
+        if (pickedController)
+        {
+            if (!in_progress)
+            {
+                ImGui::Indent((windowSize / 2.f) - (buttonWidth / 2.f));
+                if (ImGui::Button("Start", { buttonWidth, 0.f }))
+                {
+                    StartGame();
+                }
+                ImGui::Unindent((windowSize / 2.f) - (buttonWidth / 2.f));
+                ImGui::Separator();
+            }
+        }
+
+        if (in_progress)
         {
             ImGui::Indent((windowSize / 2.f) - (buttonWidth / 2.f));
-            if (ImGui::Button("Start", { buttonWidth, 0.f }))
+            if (ImGui::Button("Stop", { buttonWidth, 0.f }))
             {
-                StartGame();
+                StopGame();
             }
             ImGui::Unindent((windowSize / 2.f) - (buttonWidth / 2.f));
+            ImGui::Separator();
+        }
+
+        if (pickedController)
+        {
+            pickedController->ImGuiUpdate(dt);
         }
     }
     ImGui::End();
@@ -184,9 +248,9 @@ void SnakeGame::ImGuiRender(float)
 
 void SnakeGame::Tick()
 {
-    if (controller)
+    if (pickedController)
     {
-        Direction dir = controller->GetDirection(field.GetTileGrid());
+        Direction dir = pickedController->GetDirection();
         dir = GetRightDirection(dir);
         currentDirection = dir;
 
@@ -199,17 +263,18 @@ void SnakeGame::Tick()
         }
 
         UpdateSnakePosition(dir);
-        CheckBounds();
+
+        if (CheckBounds())
+        {
+            StopGame();
+            return;
+        }
 
         for (std::size_t i = 1; i < snake.size(); ++i)
         {
             if (snake[0].x == snake[i].x && snake[0].y == snake[i].y)
             {
-                isInProgress = false;
-                currentDirection = Direction::Up;
-
-                SpawnSnake();
-                SpawnFruit();
+                StopGame();
                 break;
             }
         }
@@ -220,10 +285,11 @@ void SnakeGame::Tick()
 
 void SnakeGame::UpdateSnakePosition(Direction dir)
 {
-    for (std::size_t i = snake.size() - 1; i > 0; --i)
-    {
-        snake[i] = snake[i - 1];
-    }
+
+        for (std::size_t i = snake.size() - 1; i > 0; --i)
+        {
+            snake[i] = snake[i - 1];
+        }
 
     switch (dir)
     {
@@ -234,26 +300,16 @@ void SnakeGame::UpdateSnakePosition(Direction dir)
     }
 }
 
-void SnakeGame::CheckBounds()
+bool SnakeGame::CheckBounds()
 {
     auto fieldSize = field.GetFieldSize();
 
-    if (snake[0].x >= fieldSize)
-    {
-        snake[0].x = 0;
-    }
-    if (snake[0].x < 0)
-    {
-        snake[0].x = fieldSize - 1;;
-    }
-    if (snake[0].y >= fieldSize)
-    {
-        snake[0].y = 0;
-    }
-    if (snake[0].y < 0)
-    {
-        snake[0].y = fieldSize - 1;;
-    }
+    if (snake[0].x >= fieldSize) return true;
+    if (snake[0].x < 0) return true;
+    if (snake[0].y >= fieldSize) return true;
+    if (snake[0].y < 0) return true;
+
+    return false;
 }
 
 void SnakeGame::RefreshField()

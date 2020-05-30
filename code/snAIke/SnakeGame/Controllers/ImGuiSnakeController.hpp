@@ -1,6 +1,6 @@
 #pragma once
 
-#include <snAike/SnakeGame/SnakeController.hpp>
+#include <snAike/SnakeGame/Controllers/SnakeController.hpp>
 #include <snAIke/Singletons/Director/Types.hpp>
 
 class ImGuiSnakeController : public SnakeController
@@ -9,10 +9,11 @@ public:
     ImGuiSnakeController();
     ~ImGuiSnakeController();
 
-    virtual Direction GetDirection(const TileGrid& field) override;
+    virtual Direction GetDirection() override;
+    virtual const char* GetName() const override { return "ImGuiSnakeController"; }
 
 private:
-    void ImGuiUpdate(float);
+    virtual void ImGuiUpdate_Impl() override;
 
 private:
     std::vector<UpdatorIdType> callbacks;

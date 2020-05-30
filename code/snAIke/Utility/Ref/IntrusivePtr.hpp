@@ -3,10 +3,7 @@
 #include <snAike/Utility/Ref/ReferenceCountable.hpp>
 #include <type_traits>
 
-template <
-    class T,
-    class = std::enable_if_t<std::is_base_of_v<ReferenceCountable<typename T::thread_policy>, T>, T>
->
+template <class T>
 class IntrusivePtr
 {
 private:
@@ -36,7 +33,7 @@ public:
     }
 
     template <class U>
-    IntrusivePtr(const IntrusivePtr& other)
+    IntrusivePtr(const IntrusivePtr<U>& other)
         : data(other.data)
     {
         static_assert(std::is_base_of_v<T, U>, "U should derrive T!");
@@ -44,7 +41,7 @@ public:
     }
 
     template <class U>
-    IntrusivePtr(IntrusivePtr&& other)
+    IntrusivePtr(IntrusivePtr<U>&& other)
         : data(other.data)
     {
         static_assert(std::is_base_of_v<T, U>, "U should derrive T!");
@@ -114,6 +111,10 @@ public:
         }
     }
 
+    IntrusivePtr& operator=(std::nullptr_t)
+    {
+        data = nullptr;
+    }
 
     T& operator*() { return *data; }
     T* operator->() { return data; }
@@ -127,7 +128,7 @@ public:
 
 private:
 
-    template <class U, class>
+    template <class U>
     friend class IntrusivePtr;
 };
 

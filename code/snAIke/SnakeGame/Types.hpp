@@ -29,8 +29,8 @@ using Snake = std::vector<SnakeSegment>;
 
 enum class Direction
 {
-    Up = 0,
-    Right = 1,
-    Left = 2,
-    Down = 3
+    Up = 1,
+    Right = 2,
+    Left = 3,
+    Down = 4
 };

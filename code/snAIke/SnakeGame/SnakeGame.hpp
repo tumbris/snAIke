@@ -3,10 +3,12 @@
 #include <snAIke/SnakeGame/Field.hpp>
 #include <snAIke/Singletons/Director/Types.hpp>
 #include <snAIke/Utility/Ref/IntrusivePtr.hpp>
-#include <snAIke/SnakeGame/SnakeController.hpp>
+#include <snAIke/SnakeGame/Controllers/SnakeController.hpp>
 
-#include <vector>
 #include <SFML\include\SFML\Window\Keyboard.hpp>
+
+#include <functional>
+#include <vector>
 
 class ImGuiRenderWindow;
 
@@ -17,17 +19,24 @@ private:
 public:
     ~SnakeGame();
 
-    void Init(std::size_t fieldSize, const IntrusivePtr<SnakeController>& controller = nullptr);
+    void Init(std::size_t fieldSize);
 
-    void SetController(const IntrusivePtr<SnakeController>& controller);
+    void PushController(const IntrusivePtr<SnakeController>& controller);
 
     void Update(float dt);
 
     bool IsInProgress() const;
 
-    void StartGame();
+    const Snake& GetSnake() const { return snake; };
+    const Fruit& GetFruit() const { return fruit; };
+
+    template <class Fn>
+    void SetOnGameEndCallback(Fn&& callback);
 
 private:
+    void StartGame();
+    void StopGame();
+
     void SpawnSnake();
     void SpawnFruit();
     void ImGuiRender(float);
@@ -35,21 +44,23 @@ private:
     void Tick();
 
     void UpdateSnakePosition(Direction dir);
-    void CheckBounds();
+    bool CheckBounds();
     void RefreshField();
 
     Direction GetRightDirection(Direction dir) const;
 private:
-
     Field field;
     Snake snake;
     Fruit fruit;
 
     Direction currentDirection = Direction::Up;
 
+    std::function<void(SnakeGame*)> onGameEndCallback;
     std::vector<UpdatorIdType> callbacks;
 
-    IntrusivePtr<SnakeController> controller;
+    std::vector<IntrusivePtr<SnakeController>> controllers;
+    SnakeController* pickedController = nullptr;
+
     ImGuiRenderWindow* renderTarget;
 
     std::uint32_t score{0};
@@ -61,3 +72,10 @@ private:
     void DebugDraw(float);
 #endif
 };
+
+
+template<class Fn>
+void SnakeGame::SetOnGameEndCallback(Fn&& callback)
+{
+    onGameEndCallback = std::forward<Fn>(callback);
+}
