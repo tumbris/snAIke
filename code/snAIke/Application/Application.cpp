@@ -1,6 +1,7 @@
 #include <snAIke/Application/Application.hpp>
 #include <snAIke/Singletons/Director/Director.hpp>
 #include <snAIke/Singletons/GameManager.hpp>
+#include <snAIke/Singletons/AIManager.hpp>
 
 #include <snAIke/SnakeGame/SnakeGame.hpp>
 #include <snAIke/ImGui/ImGuiRenderWindow.hpp>
@@ -156,6 +157,15 @@ void Application::DisplayMenuBar()
             {
                 if (impl->gameMainRenderWindow.IsOpen()) impl->gameMainRenderWindow.Hide();
                 else impl->gameMainRenderWindow.Show();
+            }
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("Learning"))
+        {
+            auto aiManager = Singleton<AIManager>::GetInstance();
+            if (ImGui::MenuItem("Training", "", aiManager->IsImGuiShowing()))
+            {
+                aiManager->OpenImGui();
             }
             ImGui::EndMenu();
         }

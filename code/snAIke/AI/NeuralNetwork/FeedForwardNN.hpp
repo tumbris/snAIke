@@ -1,46 +1,44 @@
 #pragma once
 
 #include <snAIke/Utility/Ref/ReferenceCountable.hpp>
+#include <snAIke/AI/Types.hpp>
 
 #include <vector>
 #include <string>
 
 struct Layer
 {
-    using WeightMat = std::vector<std::vector<float>>;
-
     Layer(std::size_t neurons_num, std::size_t next_layer_size);
     
-    void Pass(std::vector<float>& next);
+    void Accept(const Layer& inputs);
+    std::vector<float> Activate();
+
+    static Layer FromInput(const std::vector<float>& input);
 
     std::vector<float> neurons;
-    WeightMat weights;
+    std::vector<float> biases;
+    LayerWeights weights;
 };
 
 class FeedForwardNN : public ReferenceCountable<DefaultThreadPolicy>
 {
 public:
-    struct Config
-    {
-        std::vector<std::size_t> layers_sizes;
-        std::size_t outputs_count;
-    };
-
-public:
-    void Init(const Config& config);
+    void Init(const NNLayersConfig& config);
 
     std::vector<float> Run(const std::vector<float>& input);
 
-    void SetRandomWeights();
+    void Randomize();
 
-    void SetWeights(const std::vector<Layer::WeightMat>& weights);
-    std::vector<Layer::WeightMat> GetWeights() const;
+    void SetWeights(const NNWeights& weights);
+    NNWeights GetWeights() const;
+
+    void SetBiases(const std::vector<std::vector<float>>& biases);
+    std::vector<std::vector<float>> GetBiases() const;
 
     bool LoadFromFile(std::string filename = "nncfg.txt");
     void SaveToFile(std::string filename = "nncfg.txt");
 
 private:
     std::vector<Layer> layers;
-    std::vector<float> outputs;
 };
 

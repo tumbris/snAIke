@@ -84,6 +84,7 @@ void SnakeGame::StartGame()
     if (pickedController)
     {
         pickedController->Bind(field.GetTileGrid());
+        pickedController->Bind(snake);
     }
 }
 
